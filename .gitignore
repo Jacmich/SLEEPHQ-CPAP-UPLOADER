@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+uploader_log.txt
+*.log
+flashair_downloads/
+venv/
