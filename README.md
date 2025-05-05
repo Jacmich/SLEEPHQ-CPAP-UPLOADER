@@ -1,4 +1,4 @@
-SLEEPHQ-CPAP-UPLOADER
+# SLEEPHQ-CPAP-UPLOADER
 
 Automated CPAP Data Uploading to SleepHQ and Google Drive
 
@@ -8,117 +8,165 @@ Originally developed for personal use, this was my first full-stack automation s
 
 If you're reviewing this as a sample of my work, feel free to explore the code or reach out with feedback.
 
-Key Features
+---
 
-- End-to-end automation: No user interaction needed after setup.
-- Dual upload: Sends files to both SleepHQ (for viewing) and Google Drive (for backup).
-- Hash-based deduplication: Prevents redundant uploads using SHA-256.
-- Automated cleanup: Removes old files from FlashAir, local storage, and Drive.
-- Email alerts: Sends success/error notifications after every run.
-- Fully configurable: Uses environment variables for easy deployment across environments.
-- Runs on Raspberry Pi: Optimized for low-power devices like the Pi Zero 2 W.
+## Features
 
-Table of Contents
+- **Automated Downloads**: Retrieves essential DATALOG and SETTINGS files from a Toshiba FlashAir SD card.
+- **Secure and Reliable Uploads**: Seamlessly uploads files to SleepHQ for analysis and Google Drive for backup.
+- **Duplicate Detection**: Employs file hashing to prevent re-uploading already processed files.
+- **Retention Policy Management**: Automatically removes outdated files from FlashAir, local storage, and Google Drive.
+- **Detailed Logging**: Provides comprehensive logs for auditing and debugging purposes.
+- **Email Notifications**: Sends detailed reports and alerts via Gmail.
+- **Customizable Settings**: Configurations are managed through environment variables for flexible operation.
 
-- Requirements
-- Installation & Setup
-- Configuration
-- How It Works
-- Logging & Notifications
-- Retention Policy
-- Troubleshooting
-- License
-- Credits
+---
 
-Requirements
+## Table of Contents
 
-- Python 3.8+
-- A Toshiba FlashAir SD card (with WiFi and API enabled)
-- SleepHQ account with API access
-- Google Cloud Service Account (for Drive API)
-- Gmail account (App Password required)
-- Raspberry Pi or other Linux device recommended
+- [Requirements](#requirements)
+- [Setup](#setup)
+- [Configuration](#configuration)
+- [How It Works](#how-it-works)
+- [Logs and Notifications](#logs-and-notifications)
+- [Retention Policy](#retention-policy)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Credits](#credits)
 
-Install dependencies:
+---
+
+## Requirements
+
+- Python 3.8 or later
+- [PyDrive2](https://github.com/iterative/PyDrive2)
+- [python-dotenv](https://pypi.org/project/python-dotenv/)
+- `requests`
+- Access to a Toshiba FlashAir SD card with WiFi enabled
+- [SleepHQ](https://sleephq.com/) account with API credentials
+- Google Cloud service account with Drive access
+- Gmail account with an App Password for notifications
+- Hardware used: Raspberry Pi 5 (runs fine with a Raspberry Pi Zero 2 W, wouldnt go lower than that though)
+
+### Installing Dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-Installation & Setup
+---
 
-1. Clone this repository
+## Setup
+
+1. **Clone the Repository**
+   ```bash
    git clone https://github.com/Jacmich/SLEEPHQ-CPAP-UPLOADER.git
    cd SLEEPHQ-CPAP-UPLOADER
+   ```
 
-2. Create environment configuration
-   - Copy .env.template to .env
-   - Fill in all required values (see Configuration)
+2. **Configure Environment Variables**
+   - Copy `.env.template` to `.env` and populate it with the required fields (refer to [Configuration](#configuration)).
 
-3. Set up Google Drive access
-   - Create a service account in Google Cloud
-   - Enable the Drive API
-   - Save and reference the JSON key file
+3. **Set Up Google Drive Credentials**
+   - Create a Google Cloud service account and download the JSON key file.
+   - Update the `CREDENTIALS_JSON` field in your `.env` file with the path to this file.
 
-4. Connect your FlashAir card
-   - Ensure it's accessible on your WiFi network
+4. **Prepare FlashAir**
+   - Ensure the FlashAir SD card is accessible from your local network with its API enabled.
 
-5. Schedule automatic runs (optional)
-   - Use cron or a scheduled task to run the script daily
+5. **(Optional) Schedule Execution**
+   - Use a task scheduler like `cron` (Linux) or Windows Task Scheduler for automated daily execution.
 
-Configuration
+---
 
-All options are set via environment variables:
+## Configuration
 
-| Variable              | Purpose                                  |
-|-----------------------|------------------------------------------|
-| FLASHAIR_IP           | IP address of FlashAir card              |
-| CLIENT_ID             | SleepHQ API client ID                    |
-| CREDENTIALS_JSON      | Path to Google Drive credentials JSON    |
-| DRIVE_FOLDER_ID       | Target Google Drive folder ID            |
-| DOWNLOAD_DIR          | Local download folder                    |
-| DAYS_TO_KEEP_LOCAL    | Days to retain local files               |
-| GMAIL_USERNAME        | Gmail sender address                     |
-| NOTIFICATION_EMAIL    | Recipient address for reports            |
-| (... and more)        | See .env.template for full list          |
+Configuration is handled via environment variables. Refer to `.env.template` for a comprehensive list of configurable options.
 
-How It Works
+| Variable                | Description                                          |
+|-------------------------|------------------------------------------------------|
+| FLASHAIR_IP             | IP address of the FlashAir SD card                   |
+| FLASHAIR_PASSWORD       | Password for FlashAir (if applicable)                |
+| DOWNLOAD_DIR            | Local directory for downloading and processing files |
+| DAYS_TO_KEEP_FLASHAIR   | Retention period for FlashAir files (default: 7 days)|
+| DAYS_TO_KEEP_LOCAL      | Retention period for local files (default: 9 days)   |
+| CLIENT_ID               | SleepHQ API client ID                                |
+| CLIENT_SECRET           | SleepHQ API client secret                            |
+| USERNAME                | SleepHQ account username                             |
+| PASSWORD                | SleepHQ account password                             |
+| TEAM_ID                 | SleepHQ team ID                                      |
+| CREDENTIALS_JSON        | Path to Google API credentials JSON                  |
+| DRIVE_FOLDER_ID         | Google Drive folder ID for uploads                   |
+| GMAIL_USERNAME          | Gmail account for notifications                      |
+| GMAIL_APP_PASSWORD      | Gmail App Password                                   |
+| NOTIFICATION_EMAIL      | Recipient email for notifications                    |
+| LOG_DIR                 | Directory for storing logs                           |
 
-1. Data Discovery: Detects files from the last 2 days on FlashAir (/DATALOG, /SETTINGS, and root files).
-2. File Transfer: Downloads those files to a local directory.
-3. Integrity Checks: Verifies files and checks for duplicates using a hash log.
-4. Uploads: Sends data to both SleepHQ and Google Drive.
-5. Post-Processing: Triggers SleepHQ to process the uploads.
-6. Cleanup: Removes old files based on your retention settings.
-7. Notifications: Sends an email summary of the run, with error tracking.
+---
 
-Logging & Notifications
+## How It Works
 
-- All activity is recorded in the LOG_DIR folder (successes, errors, and hash logs).
-- Email reports include:
-  - Number of files uploaded
-  - Any skipped or failed uploads
-  - Errors encountered during transfer or API calls
+1. **File Collection**
+   - Retrieves today’s and yesterday’s `/DATALOG/YYYYMMDD` files, all `/SETTINGS` files, and key root files (`STR.edf`, `Identification.crc`, `Identification.json`).
 
-Retention Policy
+2. **Download**
+   - Downloads required files from the FlashAir SD card to a local directory and verifies the integrity of the download.
 
-- FlashAir: Old files deleted after DAYS_TO_KEEP_FLASHAIR days
-- Local: Cleaned up after DAYS_TO_KEEP_LOCAL
-- Google Drive: Folders older than DAYS_TO_KEEP_FLASHAIR are purged
+3. **Hash Verification**
+   - Computes SHA-256 file hashes to avoid duplicate uploads, maintaining a 7-day hash log.
 
-Troubleshooting
+4. **Upload**
+   - Files are uploaded to SleepHQ via its API and to Google Drive, organized by date.
 
-- Files not downloading? Confirm the FlashAir card is online and reachable.
-- Email not sending? Double-check Gmail App Password settings.
-- Drive upload failing? Ensure your service account has permission for the target folder.
+5. **Post-Upload Processing**
+   - Triggers SleepHQ to process the uploaded files.
 
-License
+6. **Cleanup**
+   - Deletes files from FlashAir, local storage, and Google Drive based on the configured retention policy.
 
-This project is open-source under the MIT License.
+7. **Reporting**
+   - Sends email notifications detailing the results of the operation, including any errors or skipped files.
 
-Credits
+---
+
+## Logs and Notifications
+
+- **Logs**: Stored in `LOG_DIR` with files such as `success.log`, `errors.log`, and `uploaded_hashes.log`.
+- **Email Reports**: Summarizes each execution, highlighting successes, errors, and any missing files.
+
+---
+
+## Retention Policy
+
+- **FlashAir**: Deletes folders older than `DAYS_TO_KEEP_FLASHAIR`.
+- **Local**: Removes files older than `DAYS_TO_KEEP_LOCAL`.
+- **Google Drive**: Purges folders older than `DAYS_TO_KEEP_FLASHAIR`.
+
+---
+
+## Troubleshooting
+
+- **Missing Files**: The script will notify you via email if required files are unavailable.
+- **Authentication Issues**: Verify your SleepHQ and Google Drive credentials.
+- **Gmail Errors**: Ensure you are using an App Password instead of your Gmail account password.
+- **Network Connectivity**: Confirm that the FlashAir device is powered and reachable on your network.
+
+---
+
+## License
+
+This project is licensed under the MIT License. For details, see [LICENSE](LICENSE).
+
+---
+
+## Credits
 
 Developed by @Jacmich
 SleepHQ API provided by SleepHQ
 
-Want to Learn More?
+---
+
+**Want to Learn More?** 
 
 This project is a hands-on example of:
 - Real-world automation using Python
