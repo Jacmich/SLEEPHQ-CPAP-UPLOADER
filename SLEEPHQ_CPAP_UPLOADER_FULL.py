@@ -248,16 +248,8 @@ def get_or_create_drive_folder(drive, parent_id, folder_name):
     folder.Upload()
     return folder['id']
 
-def upload_to_drive(file_path, date_folder):
+def upload_to_drive(file_path, date_folder, drive):
     try:
-        gauth = GoogleAuth(settings={
-            "client_config_backend": "service",
-            "service_config": {
-                "client_json_file_path": CREDENTIALS_JSON
-            }
-        })
-        gauth.ServiceAuth()
-        drive = GoogleDrive(gauth)
         # Create/find date folder
         date_folder_id = get_or_create_drive_folder(drive, DRIVE_FOLDER_ID, date_folder)
         file = drive.CreateFile({
@@ -477,6 +469,14 @@ if __name__ == "__main__":
         try:
             access_token = get_access_token()
             import_id = create_import(access_token)
+            gauth = GoogleAuth(settings={
+                "client_config_backend": "service",
+                "service_config": {
+                    "client_json_file_path": CREDENTIALS_JSON
+                }
+            })
+            gauth.ServiceAuth()
+            drive = GoogleDrive(gauth)
             for file_path in files_to_upload:
                 relative_path = file_path.relative_to(DOWNLOAD_DIR)
                 if upload_file_to_import(file_path, access_token, import_id, relative_path):
@@ -486,7 +486,7 @@ if __name__ == "__main__":
                 relative_path = file_path.relative_to(DOWNLOAD_DIR)
                 # Use today's date as folder name, or extract from file_path if you want per-session folders
                 date_folder = today_str
-                upload_to_drive(file_path, date_folder)
+                upload_to_drive(file_path, date_folder, drive)
             process_import(access_token, import_id)
         except Exception as e:
             log_error(f"Failed during upload: {e}", step="Upload")
