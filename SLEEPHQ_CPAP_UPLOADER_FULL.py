@@ -107,6 +107,31 @@ def list_flashair_files(root="/"):
                 all_files.append(full_path)
     return all_files
 
+
+def list_flashair_dirs(root="/"):
+    """Return a list of directories directly under the given root path."""
+    try:
+        data = flashair_get({"op": "100", "DIR": root})
+    except Exception as e:
+        log_error(f"Failed to list {root}: {e}")
+        return []
+
+    lines = data.splitlines()
+    if not lines or lines[0] != "WLANSD_FILELIST":
+        return []
+
+    dirs = []
+    for line in lines[1:]:
+        parts = line.split(",")
+        if len(parts) < 4:
+            continue
+        name = parts[1].strip()
+        attribute = parts[3].strip()
+        if attribute == "16":
+            dirs.append(root.rstrip("/") + "/" + name)
+
+    return dirs
+
 def flashair_download_file(remote_path, local_path):
     try:
         url_path = remote_path.replace("/", "%2F").lstrip("/")
@@ -145,16 +170,16 @@ def cleanup_local_files(base_dir, days_old):
 # --- FlashAir Cleanup Helper ---
 def cleanup_flashair_dated_folders(base_dir, days_old):
     cutoff_date = datetime.now() - timedelta(days=days_old)
-    all_folders = list_flashair_files(base_dir)
-    for folder in all_folders:
-        folder_name = folder.strip("/").split("/")[-1]
+    directories = list_flashair_dirs(base_dir)
+    for directory in directories:
+        folder_name = directory.strip("/").split("/")[-1]
         try:
             folder_date = datetime.strptime(folder_name, "%Y%m%d")
-            if folder_date < cutoff_date:
-                flashair_delete_file(folder)
-                log_success(f"Deleted old folder from FlashAir: {folder}")
         except ValueError:
             continue
+        if folder_date < cutoff_date:
+            flashair_delete_file(directory)
+            log_success(f"Deleted old folder from FlashAir: {directory}")
 
 # --- SleepHQ Helpers ---
 def get_access_token():
