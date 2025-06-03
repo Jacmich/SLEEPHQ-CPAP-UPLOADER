@@ -13,6 +13,29 @@ from dotenv import load_dotenv
 # --- Load Environment Variables ---
 load_dotenv()
 
+# --- Ensure Required Environment Variables Are Set ---
+REQUIRED_ENV_VARS = [
+    "FLASHAIR_IP",
+    "DOWNLOAD_DIR",
+    "CLIENT_ID",
+    "CLIENT_SECRET",
+    "USERNAME",
+    "PASSWORD",
+    "TEAM_ID",
+    "CREDENTIALS_JSON",
+    "DRIVE_FOLDER_ID",
+    "GMAIL_USERNAME",
+    "GMAIL_APP_PASSWORD",
+    "NOTIFICATION_EMAIL",
+    "LOG_DIR",
+]
+
+missing_vars = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
+if missing_vars:
+    missing_str = ", ".join(missing_vars)
+    sys.stderr.write(f"ERROR: Missing required environment variables: {missing_str}\n")
+    sys.exit(1)
+
 # --- Config ---
 
 FLASHAIR_IP = os.getenv("FLASHAIR_IP")
